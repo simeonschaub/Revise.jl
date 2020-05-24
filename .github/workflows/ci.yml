@@ -28,7 +28,7 @@ jobs:
     steps:
     - name: terminal
       if: ${{ matrix.os == 'ubuntu-latest' }}
-      run: sudo apt install ncurses-base
+      run: export TERM="xterm"
     - uses: actions/checkout@v2
     - uses: julia-actions/setup-julia@v1
       with:
