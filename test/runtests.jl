@@ -2575,8 +2575,9 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
         cd(path) do
             pkgpath = joinpath(path, "A2D")
             srcpath = joinpath(pkgpath, "src")
+            pkgdict = nothing
             if generate
-                Pkg.generate("A2D")
+                pkgdict = Pkg.generate("A2D")
             else
                 mkpath(srcpath)
             end
@@ -2589,7 +2590,7 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
                         """)
             end
             chmod(filepath, mode=="r" ? 0o100444 : 0o100644)
-            return pkgpath
+            return pkgpath, pkgdict
         end
     end
     # Create a new package depot
@@ -2608,7 +2609,8 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
     open(Base.ACTIVE_PROJECT[], "w") do io
         println(io, "[deps]")
     end
-    ropkgpath = make_a2d(depot, 1)
+    ropkgpath, ropkgdict = make_a2d(depot, 1)
+    @show ropkgpath ropkgdict
     Pkg.REPLMode.do_cmd(Pkg.REPLMode.minirepl[], "dev $ropkgpath"; do_rethrow=true)  # like pkg> dev $pkgpath; unfortunately, Pkg.develop(pkgpath) doesn't work
     sleep(mtimedelay)
     @eval using A2D
@@ -2622,7 +2624,7 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
     mfile = Revise.manifest_file()
     schedule(Task(Revise.TaskThunk(Revise.watch_manifest, (mfile,))))
     sleep(mtimedelay)
-    pkgdevpath = make_a2d(devpath, 2, "w"; generate=false)
+    pkgdevpath, _ = make_a2d(devpath, 2, "w"; generate=false)
     cp(joinpath(ropkgpath, "Project.toml"), joinpath(devpath, "A2D/Project.toml"))
     Pkg.REPLMode.do_cmd(Pkg.REPLMode.minirepl[], "dev $pkgdevpath"; do_rethrow=true)
     yry()
