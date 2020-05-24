@@ -2599,10 +2599,13 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
     old_depots = copy(DEPOT_PATH)
     empty!(DEPOT_PATH)
     push!(DEPOT_PATH, depot)
-    # Skip cloning the General registry since that is slow and unnecessary
-    registries = Pkg.Types.DEFAULT_REGISTRIES
-    old_registries = copy(registries)
-    empty!(registries)
+    local registries, old_registries
+    if !Sys.iswindows()
+        # Skip cloning the General registry since that is slow and unnecessary
+        registries = Pkg.Types.DEFAULT_REGISTRIES
+        old_registries = copy(registries)
+        empty!(registries)
+    end
     # Ensure we start fresh with no dependencies
     old_project = Base.ACTIVE_PROJECT[]
     @show old_project
@@ -2642,8 +2645,10 @@ do_test("Switching free/dev") && @testset "Switching free/dev" begin
     # Restore internal Pkg data
     empty!(DEPOT_PATH)
     append!(DEPOT_PATH, old_depots)
-    for pr in old_registries
-        push!(registries, pr)
+    if !Sys.iswindows()
+        for pr in old_registries
+            push!(registries, pr)
+        end
     end
     Base.ACTIVE_PROJECT[] = old_project
 
