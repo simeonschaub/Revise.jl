@@ -21,7 +21,6 @@ jobs:
           - windows-latest
         arch:
           - x64
-          - x32
         exclude:
           - os: macOS-latest
             arch: x32
