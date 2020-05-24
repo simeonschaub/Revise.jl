@@ -2569,7 +2569,7 @@ do_test("Utilities") && @testset "Utilities" begin
     @test occursin("…", str)
 end
 
-do_test("Switching free/dev") && @testset "Switching free/dev" begin
+!Sys.iswindows() && do_test("Switching free/dev") && @testset "Switching free/dev" begin
     function make_a2d(path, val, mode="r"; generate=true)
         # Create a new "read-only package" (which mimics how Pkg works when you `add` a package)
         cd(path) do
