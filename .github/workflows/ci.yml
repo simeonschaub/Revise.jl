@@ -1,7 +1,9 @@
 name: CI
 on:
-  - push
-  - pull_request
+  push:
+    branches:
+      - master
+  pull_request:
 jobs:
   test:
     name: Julia ${{ matrix.version }} - ${{ matrix.os }} - ${{ matrix.arch }}
@@ -21,20 +23,44 @@ jobs:
           - windows-latest
         arch:
           - x64
-        exclude:
-          - os: macOS-latest
-            arch: x32
-    steps:
-      - uses: actions/checkout@v2
-      - uses: julia-actions/setup-julia@v1
-        with:
-          version: ${{ matrix.version }}
-          arch: ${{ matrix.arch }}
-      - uses: julia-actions/julia-buildpkg@latest
-      - uses: julia-actions/julia-runtest@latest
-      - uses: julia-actions/julia-uploadcodecov@latest
+    jobs:
+      install:
+        runs-on: ${{ matrix.os }}
+        steps:
+        - uses: actions/checkout@v2
+        - uses: julia-actions/setup-julia@v1
+          with:
+            version: ${{ matrix.version }}
+            arch: ${{ matrix.arch }}
+        - uses: julia-actions/julia-buildpkg@latest
+        # Populate the precompile cache with an extraneous file, to catch issues like in #460
+        - run: julia -e 'include(joinpath("test", "populate_compiled.jl"))'
+      test:
+        runs-on: ${{ matrix.os }}
+        needs: install
+        steps:          
+        - uses: julia-actions/julia-runtest@latest
+      testspecial:
+        runs-on: ${{ matrix.os }}
+        needs: [install, test]
+        steps:
+          # The REPL wasn't initialized, so the "Methods at REPL" tests didn't run. Pick those up now.
+          - run: julia --project --code-coverage=user -e 'using InteractiveUtils, REPL, Revise; @async(Base.run_main_repl(true, true, false, true, false)); Revise.async_steal_repl_backend(); include(joinpath("test", "runtests.jl")); REPL.eval_user_input(:(exit()), Base.active_repl_backend)' "Methods at REPL"
+          # Tests for when using polling
+          - run: julia --project --code-coverage=user --project -e 'ENV["JULIA_REVISE_POLL"]="1"; using Pkg, Revise; include(joinpath(dirname(pathof(Revise)), "..", "test", "polling.jl"))'
+          # We also need to pick up the Git tests, but for that we need to `dev` the package
+          - run: julia --project --code-coverage=user -e 'using Pkg; Pkg.develop(PackageSpec(path=".")); include(joinpath("test", "runtests.jl"))' "Git"
+      testinotify:
+        # Running out of inotify storage (see #26)
+        runs-on: ubuntu-latest
+        needs: [install, test, testspecial]
+        steps:
+          - run: echo 4 | sudo tee -a /proc/sys/fs/inotify/max_user_watches; julia --project --code-coverage=user -e 'using Pkg, Revise; cd(joinpath(dirname(pathof(Revise)), "..", "test")); include("inotify.jl")'; fi
+      codecov:
+        runs-on: ${{ matrix.os }}
+        needs: [install, test, testspecial]
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - uses: julia-actions/julia-uploadcoveralls@latest
-        env:
-          COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
+        steps:
+        - uses: julia-actions/julia-uploadcodecov@latest
+      
