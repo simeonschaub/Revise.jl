@@ -471,7 +471,7 @@ function instantiate_sigs!(modexsigs::ModuleExprsSigs; mode=:sigs, kwargs...)
         for rex in keys(exsigs)
             is_doc_expr(rex.ex) && continue
             sigs, deps, _ = eval_with_signatures(mod, rex.ex; mode=mode, kwargs...)
-            exsigs[rex.ex] = sigs
+            exsigs[rex] = sigs
             storedeps(deps, rex, mod)
         end
     end
@@ -667,7 +667,7 @@ function revise_file_now(pkgdata::PkgData, file)
         _, includes = eval_new!(mexsnew, mexsold)
         fi = fileinfo(pkgdata, i)
         pkgdata.fileinfos[i] = FileInfo(mexsnew, fi)
-        maybe_add_includes_to_pkgdata!(pkgdata, file, includes)
+        maybe_add_includes_to_pkgdata!(pkgdata, file, includes; eval_now=true)
     end
     nothing
 end
@@ -743,7 +743,7 @@ function revise(; throw=false)
                         exsnew[rex] = sigs
                     end
                     if includes !== nothing
-                        maybe_add_includes_to_pkgdata!(pkgdata, file, includes)
+                        maybe_add_includes_to_pkgdata!(pkgdata, file, includes; eval_now=true)
                     end
                 end
             end
